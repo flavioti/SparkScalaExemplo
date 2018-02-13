@@ -1,4 +1,6 @@
-object Aprendizado {;import org.scalaide.worksheet.runtime.library.WorksheetSupport._; def main(args: Array[String])=$execute{;$skip(125); 
+package com.teste.estudo
+
+object Aprendizado {;import org.scalaide.worksheet.runtime.library.WorksheetSupport._; def main(args: Array[String])=$execute{;$skip(151); 
 
 // VALUES are immutable constants. You can't change them once defined.
 	val hello: String = "Bonjour!";System.out.println("""hello  : String = """ + $show(hello ));$skip(17); 
