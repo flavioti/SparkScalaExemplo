@@ -7,29 +7,40 @@ import java.sql.Date
 
 object LeituraArquivo {
 
-  def main(args: Array[String]) {
+  {
     Logger.getLogger("org").setLevel(org.apache.log4j.Level.OFF);
+  }
 
-    val sc = new SparkContext("local[*]", "meuProcessamento");
+  def main(args: Array[String]) {
+
+    val sc = new SparkContext("local[*]", "meuProcessamento")
     val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
-    //val rdd = sc.textFile("file:///E:/Semantix/part-00000");
+
     println("\nTotal de linhas: " + rdd.count());
 
     val lines = rdd.filter(x => x.length() >= 10); // Remoção de linhas inválidas (Por algum motivo existe uma linha com somente 8 caracteres... )
 
     println("\nTotal de linhas válidas: " + lines.count());
-    println("\nTotal de linhas inválidas: " + (rdd.count() - lines.count()) + "\n");
+    println("\nTotal de linhas descartadas: " + (rdd.count() - lines.count()) + "\n");
 
-    //numeroDeHostsUnicos(lines);
-    //cincoUrlQueMaisCausaramErro404(lines);
-    //totalDeErros404(lines);
-    //errosPorDia(lines);
+    numeroDeHostsUnicos(lines);
+    cincoUrlQueMaisCausaramErro404(lines);
+    totalDeErros404(lines);
+    errosPorDia(lines);
     totalBytesRetornados(lines)
-  };
-  
-  def totalBytesRetornados(lines: org.apache.spark.rdd.RDD[String]) {
     
-  }
+    println("\nFim")
+  };
+
+  def totalBytesRetornados(lines: org.apache.spark.rdd.RDD[String]) {
+    val bytesColumn = lines.take(1000).map(line => {
+      val column = line.split(" ").last;
+      val byte: Long = scala.util.Try(column.toLong) getOrElse 0;
+      byte
+    });
+    val resultado = bytesColumn.reduce((x, y) => x + y)
+    println("\nTotal de bytes retornados: " + resultado)
+  };
 
   def errosPorDia(lines: org.apache.spark.rdd.RDD[String]) {
     val resultado = lines.map(interpretarDataCodigo)
@@ -37,8 +48,9 @@ object LeituraArquivo {
       .mapValues(x => (x, 1))
       .reduceByKey((x, y) => (x._1, x._2 + y._2))
       .sortBy(_._2._2, false);
-    resultado.collect().foreach(println)
-  }
+    println("\nTotal de erros por dia (descendente)")
+    resultado.collect().foreach(println);
+  };
 
   def cincoUrlQueMaisCausaramErro404(lines: org.apache.spark.rdd.RDD[String]) {
     val rdd = lines.map(interpretarUrlCodigo);
@@ -85,7 +97,7 @@ object LeituraArquivo {
       };
     });
     val filtro = colunas.filter(field => field == "404");
-    println("\nTotal de erros 400...: " + filtro.count());
+    println("\nTotal de erros 404...: " + filtro.count());
   };
 
   def interpretarDataCodigo(linha: String): (String, Int) = {
