@@ -1,75 +1,71 @@
-package com.teste.spark
+package com.teste.spark;
 
-import org.apache.spark._
-import org.apache.spark.SparkContext._
-import org.apache.log4j._
+import org.apache.spark._;
+import org.apache.spark.SparkContext._;
+import org.apache.log4j._;
 
 object LeituraArquivo {
-  
+
   def main(args: Array[String]) {
-  
-    processarNovo()
-    
-  }
-  
-  def processarNovo() {
+    Logger.getLogger("org").setLevel(org.apache.log4j.Level.OFF);
 
-    val sc = new SparkContext("local[*]", "meuProcessamento")
+    val sc = new SparkContext("local[*]", "meuProcessamento");
+    val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
+    //val rdd = sc.textFile("file:///E:/Semantix/part-00000");
+    println("\nTotal de linhas: " + rdd.count())
+    val lines = rdd.filter( x => x.length() >= 10); // Remoção de linhas inválidas (Por algum motivo existe uma linha com somente 8 caracteres... )
+    println("\nTotal de linhas válidas: " + lines.count());
+    numeroDeHostsUnicos(lines);
+    cincoUrlQueMaisCausaramErro404(lines);
+    totalDeErros404(lines)
+  };
 
-    val lines = sc.textFile("file:///E:/Semantix/part-00000", 4)
-    
-    val rdd = lines.map(interpretarLinha)
-    
-    var result = rdd.groupBy(identity)
-                    .mapValues(_.size)
-                    .sortBy((x) => { x._2 }, true, 4)
-    
-    result.foreach(println)
-    
-  }
-  
-  
-  def interpretarLinha(linha: String) = {
-    val passo1 = linha.split(" - - ")    
-    val passo2 = passo1(1).split("] \"GET ")   
-    val passo3 = passo2(1).split(" ")
-    
-    val host = passo1(0).trim()
-    val data = passo2(0).substring(1).trim()
-    val url = passo3(0).trim()
-    val protocolo = passo3(1).trim()
-    val codigo = passo3(2).trim()
-    val bits = passo3(3).trim()
-    
-    //(host, data, url, protocolo, codigo, bits)
-    List(url, codigo)
-  }
-  
-  
-  def processarTotais() {
-    
-        // Cria um contexto spark
-    // local siginifica que o processamento ocorrerá nesse computador
-    // Asterisco siginifica que usará todos os núcleos de processamento
-    // meuProcessamento é o nome/identificador da sessão
-    val sc = new SparkContext("local[*]", "meuProcessamento")
+  def cincoUrlQueMaisCausaramErro404(lines: org.apache.spark.rdd.RDD[String]) {
+    val rdd = lines.map(interpretarLinha);
+    val filtro404 = rdd.filter((tupla) => { tupla._2 == 404 });
+    val totalPorRequisicao = filtro404.mapValues(x => (x, 1));
+    val totalPorRequisicaoReduc = totalPorRequisicao.reduceByKey((x, y) => (x._1, x._2 + y._2));
+    val ordenado = totalPorRequisicaoReduc.sortBy(_._2._2, false);
+    println("\nOs 5 URLs que mais causaram erro 404 ( URL, ( Código, Quantidade )):");
+    ordenado.take(5).foreach(println);
+  };
 
-    //val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95", particoes)
-    val rdd = sc.textFile("file:///E:/Semantix/part-00000")
-       
-    // Obtem a primeira coluna
-    val qtdHostsUnicos = rdd.map(line => line.toString().split(" - - ")(0).distinct )
+  def interpretarLinha(linha: String): (String, Int) = {
+    val passo1 = linha.split(" - - ")
+
+    var codigo: Int = 999;
+    var url: String = "";
+
+    if (passo1.length == 2) {
+      val passo2 = passo1(1).split("] \"GET ");
+      if (passo2.length == 2) {
+        val passo3 = passo2(1).split(" ");
+        url = passo3(0).trim();
+        codigo = scala.util.Try(passo3(2).trim().toInt) getOrElse 999;
+      }
+    }
     
-    // Obtem a penultima coluna
-    val qtdErro400 = rdd.map( line => line.toString().split(" ").init.last )
-                        .filter( field => field == "400" )    
-    
-    println("Total de linhas......: " + rdd.count())
-    println("Total de hosts unicos: " + qtdHostsUnicos.count())
-    println("Total de erros 400...: " + qtdErro400.count())
-    
+    (url, codigo)
+  };
+
+  def numeroDeHostsUnicos(lines: org.apache.spark.rdd.RDD[String]) {
+    val qtdHostsUnicos = lines.map(line => line.toString().split(" - - ")(0).distinct);
+    println("\nTotal de hosts unicos: " + qtdHostsUnicos.count());
   }
- 
+
+  def totalDeErros404(lines: org.apache.spark.rdd.RDD[String]) {
+    val colunas = lines.map(line => {
+      val colunas = line.toString().split(" ");
+      if (colunas.length > 1) {
+        colunas.init.last
+      } else {
+        println("Informação inválida");
+        println(colunas(0).toString());
+      }
+    });
+    val filtro = colunas.filter(field => field == "404");
+    println("\nTotal de erros 400...: " + filtro.count());
+  }
 }
 
 

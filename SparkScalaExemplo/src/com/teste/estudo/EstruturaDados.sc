@@ -1,3 +1,5 @@
+package com.teste.estudo
+
 object Aprendizado {
 
 // VALUES are immutable constants. You can't change them once defined.
