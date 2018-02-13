@@ -8,7 +8,7 @@ import java.sql.Date
 object LeituraArquivo {
 
   {
-    Logger.getLogger("org").setLevel(org.apache.log4j.Level.OFF);
+    Logger.getLogger("org").setLevel(org.apache.log4j.Level.ERROR);
   }
 
   def main(args: Array[String]) {
@@ -16,29 +16,25 @@ object LeituraArquivo {
     val sc = new SparkContext("local[*]", "meuProcessamento")
     val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
 
-    println("\nTotal de linhas: " + rdd.count());
+    val lines = rdd.filter(x => x.length() >= 10);
 
-    val lines = rdd.filter(x => x.length() >= 10); // Remoção de linhas inválidas (Por algum motivo existe uma linha com somente 8 caracteres... )
-
-    println("\nTotal de linhas válidas: " + lines.count());
-    println("\nTotal de linhas descartadas: " + (rdd.count() - lines.count()) + "\n");
+    println("\nLinhas válidas: " + lines.count());
+    println("\nLinhas descartadas: " + (rdd.count() - lines.count()) + "\n");
 
     numeroDeHostsUnicos(lines);
     cincoUrlQueMaisCausaramErro404(lines);
     totalDeErros404(lines);
     errosPorDia(lines);
     totalBytesRetornados(lines)
-    
+
     println("\nFim")
   };
 
   def totalBytesRetornados(lines: org.apache.spark.rdd.RDD[String]) {
-    val bytesColumn = lines.take(1000).map(line => {
-      val column = line.split(" ").last;
-      val byte: Long = scala.util.Try(column.toLong) getOrElse 0;
+    val resultado = lines.map(line => {
+      val byte: Long = scala.util.Try(line.split(" ").last.toLong) getOrElse 0;
       byte
-    });
-    val resultado = bytesColumn.reduce((x, y) => x + y)
+    }).reduce((x, y) => x + y);
     println("\nTotal de bytes retornados: " + resultado)
   };
 
@@ -53,21 +49,19 @@ object LeituraArquivo {
   };
 
   def cincoUrlQueMaisCausaramErro404(lines: org.apache.spark.rdd.RDD[String]) {
-    val rdd = lines.map(interpretarUrlCodigo);
-    val filtro404 = rdd.filter((tupla) => { tupla._2 == 404 });
-    val totalPorRequisicao = filtro404.mapValues(x => (x, 1));
-    val totalPorRequisicaoReduc = totalPorRequisicao.reduceByKey((x, y) => (x._1, x._2 + y._2));
-    val ordenado = totalPorRequisicaoReduc.sortBy(_._2._2, false);
-    println("\nOs 5 URLs que mais causaram erro 404 ( URL, ( Código, Quantidade )):");
-    ordenado.take(5).foreach(println);
+    val resultado = lines.map(interpretarUrlCodigo)
+      .filter((tupla) => { tupla._2 == 404 })
+      .mapValues(x => (x, 1))
+      .reduceByKey((x, y) => (x._1, x._2 + y._2))
+      .sortBy(_._2._2, false);
+    println("\nOs 5 URLs que mais causaram erro 404:");
+    resultado.take(5).foreach(println);
   };
 
   def interpretarUrlCodigo(linha: String): (String, Int) = {
     val passo1 = linha.split(" - - ")
-
     var codigo: Int = 999;
     var url: String = "";
-
     if (passo1.length == 2) {
       val passo2 = passo1(1).split("] \"GET ");
       if (passo2.length == 2) {
@@ -80,9 +74,8 @@ object LeituraArquivo {
   };
 
   def numeroDeHostsUnicos(lines: org.apache.spark.rdd.RDD[String]) {
-    val hosts = lines.map((line) => { line.toString().split(" - - ")(0).trim() });
-    println("\nTotal de hosts: " + hosts.count());
-    val resultado = hosts.distinct().groupBy(x => x);
+    val resultado = lines.map(x => x.toString().split(" - - ")(0).trim())
+      .distinct().groupBy(x => x);
     println("\nTotal de hosts unicos: " + resultado.count());
   };
 
@@ -101,26 +94,18 @@ object LeituraArquivo {
   };
 
   def interpretarDataCodigo(linha: String): (String, Int) = {
-    val passo1 = linha.split(" - - ")
-
+    val passo1 = linha.split(" - - ");
     var codigo: Int = 999;
     var dateStr: String = "SEM_DATA";
-    var date: java.util.Date = null;
-
     if (passo1.length == 2) {
       val passo2 = passo1(1).split("] \"GET ");
       if (passo2.length == 2) {
         val passo3 = passo2(1).split(" ");
         dateStr = passo2(0).trim().substring(1, 12);
-        date = new java.text.SimpleDateFormat("dd/MMM/yyyy").parse(dateStr);
         codigo = scala.util.Try(passo3(2).trim().toInt) getOrElse 999;
       };
     };
-
     (dateStr, codigo)
   };
 
 };
-
-// Last but one
-// http://blog.thedigitalcatonline.com/blog/2015/04/07/99-scala-problems-02-find-last-nth/
