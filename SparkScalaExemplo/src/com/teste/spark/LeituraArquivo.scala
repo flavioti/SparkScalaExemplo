@@ -10,18 +10,22 @@ object LeituraArquivo {
     Logger.getLogger("org").setLevel(org.apache.log4j.Level.OFF);
 
     val sc = new SparkContext("local[*]", "meuProcessamento");
-    val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
-    //val rdd = sc.textFile("file:///E:/Semantix/part-00000");
-    println("\nTotal de linhas: " + rdd.count())
-    val lines = rdd.filter( x => x.length() >= 10); // Remoção de linhas inválidas (Por algum motivo existe uma linha com somente 8 caracteres... )
+    //val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
+    val rdd = sc.textFile("file:///E:/Semantix/part-00000");
+    println("\nTotal de linhas: " + rdd.count());
+
+    val lines = rdd.filter(x => x.length() >= 10); // Remoção de linhas inválidas (Por algum motivo existe uma linha com somente 8 caracteres... )
+
     println("\nTotal de linhas válidas: " + lines.count());
+    println("\nTotal de linhas inválidas: " + (rdd.count() - lines.count()) + "\n");
+
     numeroDeHostsUnicos(lines);
     cincoUrlQueMaisCausaramErro404(lines);
-    totalDeErros404(lines)
+    totalDeErros404(lines);
   };
 
   def cincoUrlQueMaisCausaramErro404(lines: org.apache.spark.rdd.RDD[String]) {
-    val rdd = lines.map(interpretarLinha);
+    val rdd = lines.map(interpretarUrlCodigo);
     val filtro404 = rdd.filter((tupla) => { tupla._2 == 404 });
     val totalPorRequisicao = filtro404.mapValues(x => (x, 1));
     val totalPorRequisicaoReduc = totalPorRequisicao.reduceByKey((x, y) => (x._1, x._2 + y._2));
@@ -30,7 +34,7 @@ object LeituraArquivo {
     ordenado.take(5).foreach(println);
   };
 
-  def interpretarLinha(linha: String): (String, Int) = {
+  def interpretarUrlCodigo(linha: String): (String, Int) = {
     val passo1 = linha.split(" - - ")
 
     var codigo: Int = 999;
@@ -42,16 +46,19 @@ object LeituraArquivo {
         val passo3 = passo2(1).split(" ");
         url = passo3(0).trim();
         codigo = scala.util.Try(passo3(2).trim().toInt) getOrElse 999;
-      }
-    }
-    
+      };
+    };
     (url, codigo)
   };
 
   def numeroDeHostsUnicos(lines: org.apache.spark.rdd.RDD[String]) {
-    val qtdHostsUnicos = lines.map(line => line.toString().split(" - - ")(0).distinct);
-    println("\nTotal de hosts unicos: " + qtdHostsUnicos.count());
-  }
+    val hosts = lines.map((line) => { line.toString().split(" - - ")(0).trim() });
+    println("\nTotal de hosts: " + hosts.count());
+    hosts.foreach(println);
+    val resultado = hosts.distinct().groupBy(x => x);
+    resultado.foreach(println);
+    println("\nTotal de hosts unicos: " + resultado.count());
+  };
 
   def totalDeErros404(lines: org.apache.spark.rdd.RDD[String]) {
     val colunas = lines.map(line => {
@@ -65,9 +72,9 @@ object LeituraArquivo {
     });
     val filtro = colunas.filter(field => field == "404");
     println("\nTotal de erros 400...: " + filtro.count());
-  }
-}
+  };  
 
+}
 
 // Last but one
 // http://blog.thedigitalcatonline.com/blog/2015/04/07/99-scala-problems-02-find-last-nth/
