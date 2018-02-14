@@ -22,7 +22,7 @@ Repositorio para armazenar testes feitos com a linguagem Scala usando Spark
 
 5. GroupByKey​ ​é menos eficiente que reduceByKey​ ​em grandes dataset. Por quê?
 
-        .
+        reduceByKey é mais eficiente pois faz a agregação antes de agrupar os dados, então o volume fica menor, com um volume menor ocorre o ganho em performance.
 
 6. Explique o que o código Scala abaixo faz.
 
@@ -34,7 +34,10 @@ val counts = textFile.flatMap(line => line.split(" "))
 counts.saveAsTextFile("hdfs://...")
 ```
 
-        .
+        > Contagem de palavras
+        Na primeira linha é declarado o RDD de um arquivo localizado no HDFS.
+        Na segunda é feita uma quebra de cada linha do arquivo por espaços, atribuido o valor 1 para cada palavra, contagem de palavras distintas
+        Na terceira o resultado é salvo no HDFS
 
 ## Questões sobre o arquivo de log da Nasa
 
@@ -106,3 +109,4 @@ Youtube: <https://www.youtube.com/channel/UCeXzeZwuFqhw_2ilpSPaXiQ>
 
 Blog: <http://blog.thedigitalcatonline.com/blog/2015/04/07/99-scala-problems-02-find-last-nth/>
 
+Github <https://github.com/vaquarkhan/vk-wiki-notes/wiki/reduceByKey--vs-groupBykey-vs-aggregateByKey-vs-combineByKey>
