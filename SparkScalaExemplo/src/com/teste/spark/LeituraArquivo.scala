@@ -13,8 +13,9 @@ object LeituraArquivo {
 
   def main(args: Array[String]) {
 
-    val sc = new SparkContext("local[*]", "meuProcessamento")
+    val sc = new SparkContext("local[*]", "meuProcessamento");
     val rdd = sc.textFile("file:///E:/Semantix/access_log_Jul95");
+    rdd.cache();
 
     val lines = rdd.filter(x => x.length() >= 10);
 
@@ -25,7 +26,10 @@ object LeituraArquivo {
     cincoUrlQueMaisCausaramErro404(lines);
     totalDeErros404(lines);
     errosPorDia(lines);
-    totalBytesRetornados(lines)
+    totalBytesRetornados(lines);
+    contarPalavras(lines);
+
+    sc.stop();
 
     println("\nFim")
   };
@@ -107,5 +111,12 @@ object LeituraArquivo {
     };
     (dateStr, codigo)
   };
+
+  def contarPalavras(lines: org.apache.spark.rdd.RDD[String]) {
+    val counts = lines.flatMap(line => line.split(" "))
+      .map(word => (word, 1))
+      .reduceByKey(_ + _)
+    println(counts.count())
+  }
 
 };
