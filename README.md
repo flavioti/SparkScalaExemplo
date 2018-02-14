@@ -45,7 +45,7 @@ IMPORTANTE: O dataset de 04 de agosto não estava acessível, ao tentar fazer o 
 
 Arquivo usado para o processamento:
 
-Link dataset: <ftp://ita.ee.lbl.gov/traces/NASA_access_log_Jul95.gz&ust=1518634500000000&usg=AFQjCNGjyzD6nE5ikb_hz87xZBLTLpFsqQ&hl=pt>
+Link dataset: <ftp://ita.ee.lbl.gov/traces/NASA_access_log_Jul95.gz>
 
 ### Exercício
 
